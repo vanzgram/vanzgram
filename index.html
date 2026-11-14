@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VanzGram</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app">
+
+        <header>
+            <div class="logo">Vanz<span>Gram</span></div>
+            <div id="accountName"></div>
+        </header>
+
+        <!-- LOGIN -->
+        <section id="loginPage" class="auth">
+            <h2>Selamat Datang!</h2>
+            <p>Login ke akun VanzGram kamu</p>
+
+            <input
+                type="text"
+                id="loginUser"
+                placeholder="Username atau Email"
+                required
+            >
+
+            <input
+                id="loginPass"
+                type="password"
+                placeholder="Password"
+            >
+
+            <button class="primary" onclick="login()">LOGIN</button>
+
+            <div class="switch">
+                Belum punya akun?
+                <button onclick="showRegister()">Daftar</button>
+            </div>
+        </section>
+
+        <!-- REGISTER -->
+        <section id="registerPage" class="auth hidden">
+            <h2>Buat Akun VanzGram</h2>
+            <p>Daftar dan mulai mengobrol!</p>
+
+            <input type="text" id="regUser" placeholder="Username">
+            <input type="email" id="regEmail" placeholder="Email">
+            <input type="number" id="regAge" placeholder="age">
+            <input type="password" id="regPass" placeholder="Password">
+            <input type="password" id="regConfirm" placeholder="confirm Password">
+
+            <button class="primary" onclick="register()">DAFTAR</button>
+
+            <div class="switch">
+                Sudah punya akun?
+                <button onclick="showLogin()">Login</button>
+            </div>
+        </section>
+
+        <!-- MENU UTAMA -->
+        <div id="content" class="hidden">
+
+            <main id="mainContent"></main>
+
+            <nav class="nav">
+
+                <button onclick="navigate('chat')" id="nav-chat">
+                    <span>💬</span>Chat
+                </button>
+
+                <button onclick="navigate('updates')" id="nav-updates">
+                    <span>⭕</span>Pembaruan
+                </button>
+
+                <button onclick="navigate('groups')" id="nav-groups">
+                    <span>👥</span>Grup
+                </button>
+
+                <button onclick="navigate('calls')" id="nav-calls">
+                    <span>📞</span>Panggilan
+                </button>
+
+                <button onclick="navigate('profile')" id="nav-profile">
+                    <span>👤</span>Profil
+                </button>
+
+            </nav>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT UTAMA -->
+    <script src="script.js"></script>
+
+   
+<!-- FIREBASE -->
+<script type="module">
+
+    import {
+        initializeApp
+    } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+
+    import {
+        getDatabase,
+        ref,
+        get,
+        set,
+        update,
+        runTransaction
+    } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+
+    import {
+        getAuth,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+
+    // ==================================
+    // FIREBASE CONFIG
+    // ==================================
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBAzCNZi5rI8Ghv-GoV7hhuo43DwGXtrbM",
+        authDomain: "vanzgram-26277.firebaseapp.com",
+        databaseURL: "https://vanzgram-26277-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "vanzgram-26277",
+        storageBucket: "vanzgram-26277.firebasestorage.app",
+        messagingSenderId: "121881528856",
+        appId: "1:121881528856:web:fc4aed901f4e98e4e3916d"
+    };
+
+
+    // ==================================
+    // INITIALIZE FIREBASE
+    // ==================================
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    window.vanzgramAuth = auth;
+    window.vanzgramDB = db;
+
+
+    // ==================================
+    // FIREBASE READY
+    // ==================================
+
+    let resolveFirebaseReady;
+
+    window.firebaseReady = new Promise(resolve => {
+        resolveFirebaseReady = resolve;
+    });
+
+
+    // ==================================
+    // AUTHENTICATION
+    // ==================================
+
+    window.vanzgramCreateAccount = async function(email, password) {
+
+        const credential = await createUserWithEmailAndPassword(
+            auth,
+            email,
+            password
+        );
+
+        return credential.user;
+    };
+
+
+    window.vanzgramLoginAccount = async function(email, password) {
+
+        const credential = await signInWithEmailAndPassword(
+            auth,
+            email,
+            password
+        );
+
+        return credential.user;
+    };
+
+
+    // ==================================
+    // USERNAME CHECK
+    // ==================================
+
+    window.vanzgramUsernameExists = async function(username) {
+
+        const snapshot = await get(
+            ref(db, "usernameIndex/" + username.toLowerCase())
+        );
+
+        return snapshot.exists();
+    };
+
+
+    // ==================================
+    // RESERVE USERNAME / ID
+    // ==================================
+
+    window.vanzgramReserve = async function(path, value) {
+
+        const result = await runTransaction(
+            ref(db, path),
+            current => current === null ? value : undefined
+        );
+
+        return result.committed;
+    };
+
+
+    // ==================================
+    // SAVE COMPLETE PROFILE
+    // ==================================
+
+    window.vanzgramSaveProfile = async function(uid, profile) {
+
+        await set(
+            ref(db, "users/" + uid),
+            profile
+        );
+    };
+
+
+    // ==================================
+    // UPDATE PARTIAL PROFILE
+    // ==================================
+
+    window.vanzgramUpdateProfile = async function(uid, changes) {
+
+        if (!uid || !changes || typeof changes !== "object") {
+            throw new Error("Data profil tidak valid.");
+        }
+
+        await update(
+            ref(db, "users/" + uid),
+            changes
+        );
+
+        return true;
+    };
+
+
+    // ==================================
+    // GET PROFILE BY UID
+    // ==================================
+
+    window.vanzgramGetProfile = async function(uid) {
+
+        if (!uid) return null;
+
+        const snapshot = await get(
+            ref(db, "users/" + uid)
+        );
+
+        return snapshot.exists()
+            ? snapshot.val()
+            : null;
+    };
+
+
+    // ==================================
+    // GET PROFILE BY USERNAME
+    // ==================================
+
+    window.vanzgramGetProfileByUsername = async function(username) {
+
+        if (!username) return null;
+
+        const normalized = username.toLowerCase();
+
+        const indexSnapshot = await get(
+            ref(db, "usernameIndex/" + normalized)
+        );
+
+        if (!indexSnapshot.exists()) return null;
+
+        const uid = indexSnapshot.val();
+
+        return await window.vanzgramGetProfile(uid);
+    };
+
+
+    // ==================================
+    // GET CURRENT AUTH USER
+    // ==================================
+
+    window.vanzgramGetCurrentUID = function() {
+
+        return auth.currentUser?.uid || null;
+    };
+
+
+    // ==================================
+    // UPDATE PROFILE FIELDS
+    // ==================================
+
+    window.vanzgramUpdateBio = async function(uid, bio) {
+
+        return window.vanzgramUpdateProfile(uid, {
+            bio: String(bio || "")
+        });
+    };
+
+
+    window.vanzgramUpdatePhoto = async function(uid, photoURL) {
+
+        return window.vanzgramUpdateProfile(uid, {
+            photo: String(photoURL || "")
+        });
+    };
+
+
+    window.vanzgramUpdateBanner = async function(uid, bannerURL) {
+
+        return window.vanzgramUpdateProfile(uid, {
+            banner: String(bannerURL || "")
+        });
+    };
+
+
+    // ==================================
+    // DEVELOPER PROFILE STATUS
+    // ==================================
+
+    // Status role dan verifikasi hanya boleh
+    // diubah melalui sistem developer yang aman.
+    // Jangan berikan akses perubahan ini kepada
+    // pengguna biasa melalui fungsi publik.
+
+
+    // ==================================
+    // OLD ACCOUNT MIGRATION
+    // ==================================
+
+    window.vanzgramMigrateOldAccount = async function(email, password) {
+
+        await window.firebaseReady;
+
+        const oldUsers = JSON.parse(
+            localStorage.getItem("vanzgram_users") || "[]"
+        );
+
+        const oldUser = oldUsers.find(
+            user =>
+                String(user.username || "").toLowerCase() === "vanz"
+        );
+
+        if (!oldUser || String(oldUser.id) !== "544523") {
+
+            throw new Error(
+                "Data akun Vanz lama dengan ID 544523 tidak ditemukan."
+            );
+        }
+
+        const username = oldUser.username.toLowerCase();
+        const oldId = String(oldUser.id);
+
+        const usernameSnapshot = await get(
+            ref(db, "usernameIndex/" + username)
+        );
+
+        const idSnapshot = await get(
+            ref(db, "idIndex/" + oldId)
+        );
+
+        if (usernameSnapshot.exists() || idSnapshot.exists()) {
+
+            throw new Error(
+                "Username atau ID sudah terdaftar."
+            );
+        }
+
+        const credential = await createUserWithEmailAndPassword(
+            auth,
+            email.trim(),
+            password
+        );
+
+        const uid = credential.user.uid;
+
+        const usernameReserved = await window.vanzgramReserve(
+            "usernameIndex/" + username,
+            uid
+        );
+
+        if (!usernameReserved) {
+            throw new Error("Username gagal dicadangkan.");
+        }
+
+        const idReserved = await window.vanzgramReserve(
+            "idIndex/" + oldId,
+            uid
+        );
+
+        if (!idReserved) {
+            throw new Error("ID gagal dicadangkan.");
+        }
+
+        const profile = {
+            username: oldUser.username,
+            id: oldId
+        };
+
+        await window.vanzgramSaveProfile(uid, profile);
+
+        localStorage.setItem(
+            "vanzgram_session",
+            oldUser.username
+        );
+
+        localStorage.setItem(
+            "vanzgram_uid",
+            uid
+        );
+
+        return profile;
+    };
+
+
+    // ==================================
+    // READY
+    // ==================================
+
+    console.log("VanzGram Firebase siap!");
+    console.log("Profile synchronization helpers siap!");
+
+    resolveFirebaseReady();
+
+</script>
+<!-- END FIREBASE -->
+
+</body>
+</html>
